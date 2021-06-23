@@ -17,4 +17,10 @@ CHIP DMux4Way {
 
     PARTS:
     // Put your code here:
+    // Figure out if a/b is in, or if c/d is in
+    DMux (in=in, sel=sel[1], a=first, b=second);
+
+    // Figure out if a or b/c or d is in. Rest are 0
+    DMux (in=first, sel=sel[0], a=a, b=b);
+    DMux (in=second, sel=sel[0], a=c, b=d);
 }
