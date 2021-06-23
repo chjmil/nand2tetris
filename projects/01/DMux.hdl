@@ -15,4 +15,11 @@ CHIP DMux {
 
     PARTS:
     // Put your code here:
+    // Mux (a=false, b=in, sel=sel, out=b);
+    // Mux (a=in, b=false, sel=sel, out=a);
+    Not (in=sel, out=notsel);
+    And (a=in, b=notsel, out=a);
+    And (a=in, b=sel, out=b);
+    
+
 }
