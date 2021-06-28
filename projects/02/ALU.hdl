@@ -42,5 +42,43 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+        // flip the zx and zy
+        Not (in=zx, out=zxFlip);
+        Not (in=zy, out=zyFlip);
+        
+        // Zero the x input 
+        And16 (a=x[0..15], b[0]=zxFlip, b[1]=zxFlip, b[2]=zxFlip, b[3]=zxFlip, b[4]=zxFlip, b[5]=zxFlip, b[6]=zxFlip, b[7]=zxFlip, b[8]=zxFlip, b[9]=zxFlip, b[10]=zxFlip, b[11]=zxFlip, b[12]=zxFlip, b[13]=zxFlip, b[14]=zxFlip, b[15]=zxFlip, out=xZX);
+        
+        // Get inverse of x
+        Not16 (in=xZX, out=InverseX);
+        
+        // Negate the x input
+        Mux16 (a=xZX, b=InverseX, sel=nx, out=finalX);
+        
+        //Zero the y input
+        And16 (a=y[0..15], b[0]=zyFlip, b[1]=zyFlip, b[2]=zyFlip, b[3]=zyFlip, b[4]=zyFlip, b[5]=zyFlip, b[6]=zyFlip, b[7]=zyFlip, b[8]=zyFlip, b[9]=zyFlip, b[10]=zyFlip, b[11]=zyFlip, b[12]=zyFlip, b[13]=zyFlip, b[14]=zyFlip, b[15]=zyFlip, out=yZY);
+
+        // Get inverse of y
+        Not16 (in=yZY, out=InverseY);
+        
+        // Negate the y input
+        Mux16 (a=yZY, b=InverseY, sel=ny, out=finalY);
+
+        // f = 1, addition
+        Add16 (a=finalX, b=finalY, out=f1);
+        // f = 0, bitwise and
+        And16 (a=finalX, b=finalY, out=f0);
+        // Mux16 to determine which calculation to use
+        Mux16 (a=f0, b=f1, sel=f, out=fOut);
+        
+        // n = 1, bitwise Not
+        Not16 (in=fOut, out=fOutInverse);
+        Mux16 (a=fOut, b=fOutInverse, sel=no, out=out, out[15]=ng, out[0..7]=firstByte, out[8..15]=secondByte);
+
+        // if out == 0, set zr = 1        
+        Or8Way (in=firstByte, out=fb);
+        Or8Way (in=secondByte, out=sb);
+        Or (a=fb, b=sb, out=orResult);
+        Not (in=orResult, out=zr);
+
 }
