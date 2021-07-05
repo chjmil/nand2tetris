@@ -10,3 +10,30 @@
 // R0 >= 0, R1 >= 0, and R0*R1 < 32768.
 
 // Put your code here.
+// Use i as a counter
+// Clear R2
+@R2
+M=0
+(LOOP)
+    // if (R1 == 0) goto STOP
+    @R0
+    D=M
+    @STOP
+    D;JEQ
+    // R2 += R1
+    @R1
+    D=M
+    @R2
+    M=D+M
+    // R0--
+    @R0
+    M=M-1
+    @LOOP
+    0;JMP
+(STOP)
+    // Ending loop
+    @STOP
+    0;JMP
+
+
+
