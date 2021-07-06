@@ -11,4 +11,65 @@
 // "white" in every pixel;
 // the screen should remain fully clear as long as no key is pressed.
 
-// Put your code here.
+(TEMP)
+    @current
+    M=0
+(LOOP)
+    // See if anything is pressed on the keyboard
+    @KBD
+    D=M
+    @WHITE
+    D;JEQ
+    // If something is pressed, set fill to black
+    @BLACK
+    0;JMP
+
+(WHITE)
+    // Make sure current isn't greater than total max screen size 
+    @current
+    D=M
+    @8192
+    D=D-A
+    // if 8192 <= current, then break out 
+    @TEMP
+    D;JEQ
+
+    // Set the current location to white
+    @current
+    D=M
+    @SCREEN
+    A=A+D
+    M=0
+
+    // increment the counter
+    @current
+    M=M+1
+
+    @WHITE
+    0;JMP
+
+(BLACK)
+    // Make sure current isn't greater than total max screen size 
+    @current
+    D=M
+    @8192
+    D=D-A    // if 8192 <= current, then break out 
+    @TEMP
+    D;JEQ
+
+    // Set the current location to white
+    @current
+    D=M
+    @SCREEN
+    A=A+D
+    M=-1
+
+    // increment the counter
+    @current
+    M=M+1
+
+    @BLACK
+    0;JMP
+
+    @LOOP
+    0;JMP
