@@ -16,5 +16,20 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    
+    // Get the value
+    Register (in=finalOut, load=true, out=out, out=regOut);
+    
+    // Increment the in
+    Inc16 (in=regOut, out=regInc);
+    
+    // Determine if we want to use the incremented value or not
+    Mux16 (a=regOut, b=regInc, sel=inc, out=incOut);
+
+    // Determine if we load
+    Mux16 (a=incOut, b=in, sel=load, out=loadOut);
+
+    // Determine if we reset the value or not
+    Mux16 (a=loadOut, b[0..15]=false, sel=reset, out=finalOut);
+    
 }
