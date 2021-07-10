@@ -27,5 +27,20 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // If the MSB is 1, then it is either SCREEN or KBD
+    Mux (a=load, b=false, sel=address[14], out=loadRam);
+    RAM16K (in=in, load=loadRam, address=address[0..13], out=ramOut);
+
+    // If the second MSB is 1, then it is kbd
+    Mux (a=false, b=load, sel=address[14], out=test);
+    Mux (a=test, b=false, sel=address[13], out=loadScreen);
+
+    // Set the screen
+    Screen (in=in, address=address[0..12], load=loadScreen, out=screenOut);
+    // Set the KBD
+    Keyboard (out=kbdOut);
+
+    // Decide which value to output
+    Mux4Way16 (a=ramOut, b=ramOut, c=screenOut, d=kbdOut, sel=address[13..14], out=out);
+
 }
