@@ -39,13 +39,6 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-
-    // current issues
-    // not sure how areg works. Can it be declared wherever?
-    // no idea how jmp works
-    // address is wrong on line 3 lmao
-
-
     // if MSB is 0, then ignore all control bits
     Mux16   (a[0..15]= false, 
             b=instruction, 
@@ -64,29 +57,59 @@ CHIP CPU {
     );
     // OUT: writeM
     
-    // TODO remove
-    // Figure out writeM - should be last 'd' from 1xxxaccccccdddjjj
-    // Mux(a=false, b=writeMBit, sel=instruction[15], out=writeM);
+    // Load the value into AReg if writeABit is true or if it is an A instruction
+    Not (in=instruction[15], out=aInstruct);
+    And (a=instruction[15], b=writeABit, out=useALU);
+    Or (a=useALU, b=aInstruct, out=loadA);
 
     // Instruction Mux16 - Select either instructions or ALU output
-    Mux16 (a=aluOut, b=instruction, sel=instruction[15], out=aRegIn);
+    Mux16 (a=instruction, b=aluOut, sel=useALU, out=aRegIn);
     
-    // Load the value into AReg if aBit is true or if it is an A instruction
-    Not (in=instruction[15], out=aInstruct);
-    Or (a=aBit, b=aInstruct, out=loadA);
     ARegister (in=aRegIn, load=loadA, out=aRegOut, out[0..14]=addressM);
     // OUT: addressM
 
     // ARegister/inM Mux16 - should grab 'a' from 1xxxaccccccdddjjj
-    Mux16(a=inM, b=aRegOut, sel=aBit, out=aluInput);
+    Mux16(a=aRegOut, b=inM, sel=aBit, out=aluInput);
 
-    // PC
-    // TODO figure out ifJump (uses jjj, ng, and zr from ALU)
-    PC (in=aRegOut, load=false, inc=true, reset=reset, out[0..14]=pc);
-    // OUT: pc
+    // Figure out Jump
+    DMux8Way    (in=true, sel=jBits, 
+                a=noJump,
+                b=jgt,
+                c=jeq,
+                d=jge,
+                e=jlt,
+                f=jne,
+                g=jle,
+                h=jmp
+    );
+    
+    Not (in=aluZR, out=notAluZR);
+    
+    Or (a=aluNG, b=aluZR, out=aluNegativeEqual);    // result <= 0
+    Not (in=aluNegativeEqual, out=aluPositive);     // result > 0
 
+    And (a=aluNG, b=notAluZR, out=aluNegative);     // result < 0
+    Not (in=aluNegative, out=aluPositiveEqual);     // result >= 0
 
+    And (a=jgt, b=aluPositive, out=jgtFinal);
+    And (a=jeq, b=aluZR, out=jeqFinal);
+    And (a=jge, b=aluPositiveEqual, out=jgeFinal);
+    And (a=jlt, b=aluNegative, out=jltFinal);
+    And (a=jne, b=notAluZR, out=jneFinal);
+    And (a=jle, b=aluNegativeEqual, out=jleFinal);
 
+    Or8Way  (in[0]=false,
+            in[1]=jgtFinal,
+            in[2]=jeqFinal,
+            in[3]=jgeFinal,
+            in[4]=jltFinal,
+            in[5]=jneFinal,
+            in[6]=jleFinal,
+            in[7]=jmp,
+            out=pcLoad
+    );
+    Not (in=pcLoad, out=pcInc);
+    
     // ALU
     ALU (x=dRegOut, y=aluInput, 
         zx=zxBit,
@@ -95,9 +118,15 @@ CHIP CPU {
         ny=nyBit,
         f=fBit,
         no=noBit,
-        out=outM, out=aluOut, out=aluOutA, out=aluOutD, zr=aluZR, ng=aluNG
+        out=outM, out=aluOut, out=aluOutD, zr=aluZR, ng=aluNG
     );
     // OUT: outM
 
-    DRegister (in=aluOutD, load=writeDBit, out=dRegOut);
+    And (a=instruction[15], b=writeDBit, out=loadD);
+    DRegister (in=aluOutD, load=loadD, out=dRegOut);
+
+    // PC
+    PC (in=aRegOut, load=pcLoad, inc=pcInc, reset=reset, out[0..14]=pc);
+    // OUT: pc
+
 }
