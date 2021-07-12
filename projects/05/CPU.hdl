@@ -39,5 +39,94 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // if MSB is 0, then ignore all control bits
+    Mux16   (a[0..15]= false, 
+            b=instruction, 
+            sel=instruction[15], 
+            out[0..2]=jBits,    // control bits for jjj
+            out[3]=writeM,      // control bit for writeM
+            out[4]=writeDBit,   // control bit for D Register
+            out[5]=writeABit,   // control bit for A Register
+            out[6]=noBit,       // control bit for no bit
+            out[7]=fBit,        // control bit for f bit
+            out[8]=nyBit,       // control bit for ny bit
+            out[9]=zyBit,       // control bit for zy bit
+            out[10]=nxBit,      // control bit for nx bit
+            out[11]=zxBit,      // control bit for zx bit
+            out[12]=aBit        // control bit for a bit
+    );
+    // OUT: writeM
+    
+    // Load the value into AReg if writeABit is true or if it is an A instruction
+    Not (in=instruction[15], out=aInstruct);
+    And (a=instruction[15], b=writeABit, out=useALU);
+    Or (a=useALU, b=aInstruct, out=loadA);
+
+    // Instruction Mux16 - Select either instructions or ALU output
+    Mux16 (a=instruction, b=aluOut, sel=useALU, out=aRegIn);
+    
+    ARegister (in=aRegIn, load=loadA, out=aRegOut, out[0..14]=addressM);
+    // OUT: addressM
+
+    // ARegister/inM Mux16 - should grab 'a' from 1xxxaccccccdddjjj
+    Mux16(a=aRegOut, b=inM, sel=aBit, out=aluInput);
+
+    // Figure out Jump
+    DMux8Way    (in=true, sel=jBits, 
+                a=noJump,
+                b=jgt,
+                c=jeq,
+                d=jge,
+                e=jlt,
+                f=jne,
+                g=jle,
+                h=jmp
+    );
+    
+    Not (in=aluZR, out=notAluZR);
+    
+    Or (a=aluNG, b=aluZR, out=aluNegativeEqual);    // result <= 0
+    Not (in=aluNegativeEqual, out=aluPositive);     // result > 0
+
+    And (a=aluNG, b=notAluZR, out=aluNegative);     // result < 0
+    Not (in=aluNegative, out=aluPositiveEqual);     // result >= 0
+
+    And (a=jgt, b=aluPositive, out=jgtFinal);
+    And (a=jeq, b=aluZR, out=jeqFinal);
+    And (a=jge, b=aluPositiveEqual, out=jgeFinal);
+    And (a=jlt, b=aluNegative, out=jltFinal);
+    And (a=jne, b=notAluZR, out=jneFinal);
+    And (a=jle, b=aluNegativeEqual, out=jleFinal);
+
+    Or8Way  (in[0]=false,
+            in[1]=jgtFinal,
+            in[2]=jeqFinal,
+            in[3]=jgeFinal,
+            in[4]=jltFinal,
+            in[5]=jneFinal,
+            in[6]=jleFinal,
+            in[7]=jmp,
+            out=pcLoad
+    );
+    Not (in=pcLoad, out=pcInc);
+    
+    // ALU
+    ALU (x=dRegOut, y=aluInput, 
+        zx=zxBit,
+        nx=nxBit,
+        zy=zyBit,
+        ny=nyBit,
+        f=fBit,
+        no=noBit,
+        out=outM, out=aluOut, out=aluOutD, zr=aluZR, ng=aluNG
+    );
+    // OUT: outM
+
+    And (a=instruction[15], b=writeDBit, out=loadD);
+    DRegister (in=aluOutD, load=loadD, out=dRegOut);
+
+    // PC
+    PC (in=aRegOut, load=pcLoad, inc=pcInc, reset=reset, out[0..14]=pc);
+    // OUT: pc
+
 }
