@@ -1,4 +1,4 @@
-import os
+import sys
 from enum import Enum
 import re
 
@@ -14,12 +14,6 @@ class Parser():
     def __init__(self, input_file):
         self.input: str = ""
         self.current_line = 0
-        self.has_more_lines: bool = True
-        self.instructionType: instruction = instruction.A_INSTRUCTION
-        self.symbol: str = ""
-        self.dest: str = ""
-        self.comp: str = ""
-        self.jump: str = ""
         self.comp_map = {
             '0': '0101010',
             '1': '0111111',
@@ -50,6 +44,16 @@ class Parser():
             'D|A': '0010101',
             'D|M': '1010101', 
         }
+        self.jump_map = {
+            None: '000',
+            'JGT': '001',
+            'JEQ': '010',
+            'JGE': '011',
+            'JLT': '100',
+            'JNE': '101',
+            'JLE': '110',
+            'JMP': '111'
+        }
 
         # read input file
         with open(input_file, 'r') as f:
@@ -62,8 +66,6 @@ class Parser():
         Loop through the file and translate it
         """
         out = []
-        # 111accccccdddjjj
-        # c_instruct_regex = re.compile(r'111(\d)(\d{6})(\d{3})(\d{3})')
         # dest = comp ; jmp - dest and jmp are optional
         c_instruct_regex = re.compile(r"((.*?)=)?([^;\n]+)(;(.*))?")
         for line in self.input:
@@ -117,23 +119,7 @@ class Parser():
         """
         Returns the symbolic jump part of the current C-instruction
         """
-        if input == None:
-            out='000'
-        elif 'JGT' in input:
-            out = '001'
-        elif 'JEQ' in input:
-            out = '010'
-        elif 'JGE' in input:
-            out = '011'
-        elif 'JLT' in input:
-            out = '100'
-        elif 'JNE' in input:
-            out = '101'
-        elif 'JLE' in input:
-            out = '110'
-        elif 'JMP' in input:
-            out = '111'
-        return out
+        return self.jump_map[input]
 
 class SymbolTable():
 
@@ -168,4 +154,8 @@ class SymbolTable():
         return self.symbol_table.get(symbol, "")
 
 if __name__ == "__main__":
-    parser = Parser("max/MaxL.asm")
+    if len(sys.argv) != 2:
+        print(f"Expecting one argument, got {len(sys.argv)-1}")
+        print(f"Use: python Assembler.py <path-to-file>")
+        exit(1)
+    parser = Parser(sys.argv[1])
