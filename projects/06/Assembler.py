@@ -12,7 +12,10 @@ class Parser():
     """
 
     def __init__(self, input_file):
+        self.symbol_table = SymbolTable()
+        self.previous_address = 16
         self.input: str = ""
+        self.output_file = input_file[:input_file.find('.')]+'_assembler.hack'
         self.current_line = 0
         self.comp_map = {
             '0': '0101010',
@@ -59,6 +62,11 @@ class Parser():
         with open(input_file, 'r') as f:
             self.input =  f.readlines()
         
+        # Construct symbol table first
+        self.get_symbols()
+
+        # Reset line counter and assemble program
+        self.current_line = 0
         self.advance()
 
     def advance(self):
@@ -69,13 +77,25 @@ class Parser():
         # dest = comp ; jmp - dest and jmp are optional
         c_instruct_regex = re.compile(r"((.*?)=)?([^;\n]+)(;(.*))?")
         for line in self.input:
-            if line[:2] == '//' or line == '\n':
+            line = line.strip()
+            if line[:2] == '//' or line == '' or line[0] == '(':
                 # comment - ignore and don't increment
                 continue
-            elif line[0] == '@':
-                # symbol
-                # TODO this doesn't work for variables
-                bin_num = bin(int(line[1:]))
+
+            # remove whitespace and inline comments
+            if '//' in line:
+                line = line[:line.find('//')]
+            line = line.replace(' ', '')
+
+            if line[0] == '@':
+                if line[1:].isdigit():
+                    pass
+                elif self.symbol_table.contains(line[1:]):
+                    line = self.symbol_table.get_address(line[1:])
+                else:
+                    self.symbol_table.add_entry(line[1:], self.get_next_address())
+                    line = self.symbol_table.get_address(line[1:])
+                bin_num = bin(int(line.replace('@', '')))
                 out.append(f"{bin_num[2:]:0>16}")
             else:
                 # Instruction
@@ -85,13 +105,44 @@ class Parser():
                 comp = self.get_comp(sections[3])
                 jmp = self.get_jump(sections[5])
                 c_instruct = f"111{comp}{dest}{jmp}"
-                out.append(c_instruct)                
+                out.append(c_instruct)
 
             # increment and loop
             self.current_line += 1
         
-        for i in out:
-            print(i)
+        # output
+        with open(self.output_file, 'w+') as f:
+            out = [f'{x}\n' for x in out]
+            f.writelines(out)
+    
+    def get_symbols(self,):
+        """
+        Run through the file and add all symbols into
+        the table
+        """
+        for line in self.input:
+            line = line.strip()
+            if line[:2] == '//' or line == '':
+                # comment - ignore and don't increment
+                continue
+            elif line[0] == '(':
+                # symbol
+                self.symbol_table.add_entry(line[1:-1], self.current_line)
+                continue
+            
+            # increment and loop
+            self.current_line += 1
+    
+    def get_next_address(self):
+        # current_address = self.symbol_table.symbol_table.values()
+        # while True:
+        #     if str(self.previous_address) in current_address:
+        #         self.previous_address += 1
+        #         continue
+        #     return self.previous_address
+        num = self.previous_address
+        self.previous_address += 1
+        return num
             
     def get_dest(self, input):
         """
@@ -125,17 +176,28 @@ class SymbolTable():
 
     def __init__(self):
         """
-        Create an empty symbol table
+        Create the symbol table and add the predefined values
         """
-        self.symbol_table = dict()
+        self.symbol_table = {
+            'SP': '0',
+            'LCL': '1',
+            'ARG': '2',
+            'THIS': '3',
+            'THAT': '4',
+            'SCREEN': '16384',
+            'KBD': '24576'
+        }
+
+        for i in range(16):
+            self.symbol_table[f'R{i}'] = str(i)
     
-    def add_entry(self, symbol: str, address: int):
+    def add_entry(self, symbol: str, address: str):
         """
         Add <symbol, address> to the table
         @param symbol: symbol to add
         @param address: address to add the symbol under
         """
-        self.symbol_table[address] = symbol
+        self.symbol_table[symbol] = str(address)
     
     def contains(self, symbol: str):
         """
